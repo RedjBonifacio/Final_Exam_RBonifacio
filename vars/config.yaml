@@ -1,6 +1,0 @@
-cat > ansible/config.yaml <<'EOF'
-
-mOTD_user: "redjbonifacio"
-enterprise_service: "nginx"
-monitoring_agent: "netdata"
-EOF

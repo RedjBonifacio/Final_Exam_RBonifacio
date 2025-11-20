@@ -1,0 +1,10 @@
+---
+apache_pkg: "apache2"
+
+nagios_tarball: "nagios-4.4.6.tar.gz"
+nagios_url: "https://assets.nagios.com/downloads/nagioscore/releases/nagios-4.4.6.tar.gz"
+nagios_dir: "/opt/nagios-4.4.6"
+nagios_admin_user: "nagiosadmin"
+nagios_admin_password: "password"
+
+motd_message: "Ansible Managed by RedjBonifacio"

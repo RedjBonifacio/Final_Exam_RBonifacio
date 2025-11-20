@@ -1,0 +1,94 @@
+---
+- name: Ensure enterprise service and monitoring are installed and MOTD changed
+  hosts: all
+  become: true
+  vars_files:
+    - ../config.yaml
+
+  tasks:
+
+    - name: Ensure Python is present (Debian/Ubuntu)
+      apt:
+        name: python3
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Python is present (RedHat/CentOS)
+      yum:
+        name: python3
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Install enterprise service - nginx (Debian)
+      apt:
+        name: "{{ enterprise_service }}"
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install enterprise service - nginx (CentOS)
+      yum:
+        name: "{{ enterprise_service }}"
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Ensure nginx is started and enabled
+      service:
+        name: "{{ enterprise_service }}"
+        state: started
+        enabled: yes
+
+    - name: Create simple index.html to show this host
+      copy:
+        dest: /var/www/html/index.html
+        content: |
+          <html><body><h1>This host: {{ inventory_hostname }}</h1><p>Managed by Ansible</p></body></html>
+      when: "'/var/www/html' in ansible_facts.packages and (ansible_os_family == 'Debian' or ansible_os_family == 'RedHat')" 
+      # If default webroot doesn't exist the file may fail; later we handle this.
+
+    - name: Install prerequisite packages for Netdata (Debian)
+      apt:
+        name:
+          - curl
+          - python3-psutil
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install prerequisite packages for Netdata (RedHat)
+      yum:
+        name:
+          - curl
+          - python3-psutil
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Install Netdata using their install script
+      shell: bash <(curl -Ss https://my-netdata.io/kickstart.sh) --dont-wait
+      args:
+        creates: /usr/sbin/netdata
+      register: netdata_install
+      changed_when: "'installed' in (netdata_install.stdout | default('')) or netdata_install.rc == 0"
+
+    - name: Ensure netdata is started and enabled
+      service:
+        name: netdata
+        state: started
+        enabled: yes
+      ignore_errors: true
+
+    - name: Set MOTD file to show Ansible managed user
+      copy:
+        dest: /etc/motd
+        content: "Ansible Managed by {{ mOTD_user }}\n"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create a status file with services
+      copy:
+        dest: /tmp/ansible_service_status_{{ inventory_hostname }}.txt
+        content: |
+          nginx: {{ (ansible_facts.services['nginx'].state if 'nginx' in ansible_facts.services else 'unknown') }}
+          netdata: {{ (ansible_facts.services['netdata'].state if 'netdata' in ansible_facts.services else 'unknown') }}
+      ignore_errors: true
+
